@@ -1,3 +1,8 @@
+SONARQUBE 
+docker run -d —name sonar —restart unless-stopped -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true -p 9000:9000 sonarqube: community
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
 SNORT:
 
 sudo systemctl status snort
